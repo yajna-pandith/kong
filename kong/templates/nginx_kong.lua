@@ -197,8 +197,7 @@ server {
         grpc_pass_header   Server;
         grpc_pass_header   Date;
         grpc_ssl_name      $upstream_host;
-
-        grpc_pass grpc://kong_upstream;
+        grpc_pass          grpc://kong_upstream;
     }
 
     location @grpcs {
@@ -215,8 +214,79 @@ server {
         grpc_pass_header   Server;
         grpc_pass_header   Date;
         grpc_ssl_name      $upstream_host;
+        grpc_pass          grpcs://kong_upstream;
+    }
 
-        grpc_pass grpcs://kong_upstream;
+    location = /kong_buffered_http {
+        internal;
+        set $kong_proxy_mode  'http';
+
+        rewrite_by_lua_block {;}
+        access_by_lua_block {;}
+        header_filter_by_lua_block {;}
+        body_filter_by_lua_block {;}
+        log_by_lua_block {;}
+
+        proxy_http_version 1.1;
+        proxy_set_header   TE                $upstream_te;
+        proxy_set_header   Host              $upstream_host;
+        proxy_set_header   Upgrade           $upstream_upgrade;
+        proxy_set_header   Connection        $upstream_connection;
+        proxy_set_header   X-Forwarded-For   $upstream_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $upstream_x_forwarded_proto;
+        proxy_set_header   X-Forwarded-Host  $upstream_x_forwarded_host;
+        proxy_set_header   X-Forwarded-Port  $upstream_x_forwarded_port;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_pass_header  Server;
+        proxy_pass_header  Date;
+        proxy_ssl_name     $upstream_host;
+        proxy_pass         $upstream_scheme://kong_upstream$upstream_uri;
+    }
+
+    location = /kong_buffered_grpc {
+        internal;
+        set $kong_proxy_mode  'grpc';
+
+        rewrite_by_lua_block {;}
+        access_by_lua_block {;}
+        header_filter_by_lua_block {;}
+        body_filter_by_lua_block {;}
+        log_by_lua_block {;}
+
+        grpc_set_header    TE                $upstream_te;
+        grpc_set_header    Host              $upstream_host;
+        grpc_set_header    X-Forwarded-For   $upstream_x_forwarded_for;
+        grpc_set_header    X-Forwarded-Proto $upstream_x_forwarded_proto;
+        grpc_set_header    X-Forwarded-Host  $upstream_x_forwarded_host;
+        grpc_set_header    X-Forwarded-Port  $upstream_x_forwarded_port;
+        grpc_set_header    X-Real-IP         $remote_addr;
+        grpc_pass_header   Server;
+        grpc_pass_header   Date;
+        grpc_ssl_name      $upstream_host;
+        grpc_pass          grpc://kong_upstream;
+    }
+
+    location = /kong_buffered_grpcs {
+        internal;
+        set $kong_proxy_mode  'grpc';
+
+        rewrite_by_lua_block {;}
+        access_by_lua_block {;}
+        header_filter_by_lua_block {;}
+        body_filter_by_lua_block {;}
+        log_by_lua_block {;}
+
+        grpc_set_header    TE                $upstream_te;
+        grpc_set_header    Host              $upstream_host;
+        grpc_set_header    X-Forwarded-For   $upstream_x_forwarded_for;
+        grpc_set_header    X-Forwarded-Proto $upstream_x_forwarded_proto;
+        grpc_set_header    X-Forwarded-Host  $upstream_x_forwarded_host;
+        grpc_set_header    X-Forwarded-Port  $upstream_x_forwarded_port;
+        grpc_set_header    X-Real-IP         $remote_addr;
+        grpc_pass_header   Server;
+        grpc_pass_header   Date;
+        grpc_ssl_name      $upstream_host;
+        grpc_pass          grpcs://kong_upstream;
     }
 
     location = /kong_error_handler {
@@ -224,7 +294,6 @@ server {
         uninitialized_variable_warn off;
 
         rewrite_by_lua_block {;}
-
         access_by_lua_block {;}
 
         content_by_lua_block {
