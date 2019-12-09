@@ -2,10 +2,11 @@ local ffi = require("ffi")
 local cjson = require("cjson.safe")
 local ngx_ssl = require("ngx.ssl")
 local basic_serializer = require "kong.plugins.log-serializers.basic"
-local msgpack = require "kong.msgpack"    -- TODO: get properly installed
+local msgpack = require "MessagePack"
 
 
 local go = {}
+
 
 local C = ffi.C
 local kong = kong
