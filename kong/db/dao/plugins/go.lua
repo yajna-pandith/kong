@@ -52,7 +52,8 @@ do
         while sent_bytes < #s do
           local rc = C.write(self.fd, p+sent_bytes, #s-sent_bytes)
           if rc < 0 then
-            return nil, "error writing: "..tonumber(rc)
+            local errno = ffi.errno()
+            return nil, "error writing to socket: " .. ffi.string(C.strerror(errno))
           end
           sent_bytes = sent_bytes + rc
         end
@@ -110,10 +111,10 @@ do
     log = true,
   }
 
-  function get_connection()
+  function get_connection(socket_path)
     if not too_early[ngx.get_phase()] then
 --       ngx.log(ngx.DEBUG, "not early anymore, use a cosocket!")
-      return ngx.socket.connect("unix:" .. kong.configuration.pluginserver_socket)
+      return ngx.socket.connect("unix:" .. socket_path)
     end
 
     local fd = C.socket(C.AF_UNIX, C.SOCK_STREAM, 0)
@@ -121,15 +122,18 @@ do
       return nil, "can't create socket"
     end
 
-    local conaddr = un_addr(kong.configuration.pluginserver_socket)
-    if (C.connect(fd, conaddr, ffi.sizeof(conaddr)) < 0) then
+    local conaddr = un_addr(socket_path)
+    local res = C.connect(fd, conaddr, ffi.sizeof(conaddr))
+    if res < 0 then
       C.close(fd)
-      return nil, "connect failure:" .. kong.configuration.pluginserver_socket
+      local errno = ffi.errno()
+      return nil, "connect failure: " .. ffi.string(C.strerror(errno))
     end
 
     return ffi_sock(fd)
   end
 end
+go.get_connection = get_connection
 
 
 -- This is the MessagePack-RPC implementation
@@ -155,11 +159,11 @@ do
     msg_id = msg_id + 1
     local my_msg_id = msg_id
 
-    local c = assert(get_connection())
+    local c = assert(get_connection(kong.configuration.pluginserver_socket))
     local bytes, err = c:send(mp_pack({0, my_msg_id, method, {...}}))
     if not bytes then
       c:setkeepalive()
-      return bytes, err
+      return nil, err
     end
 
     local reader = mp_unpacker(function ()
