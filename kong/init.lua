@@ -80,6 +80,7 @@ local cache_warmup = require "kong.cache_warmup"
 local balancer_execute = require("kong.runloop.balancer").execute
 local kong_error_handlers = require "kong.error_handlers"
 local migrations_utils = require "kong.cmd.utils.migrations"
+local go = require "kong.db.dao.plugins.go"
 
 
 local kong             = kong
@@ -403,6 +404,15 @@ function Kong.init()
 
   if subsystem == "stream" or config.proxy_ssl_enabled then
     certificate.init()
+  end
+
+  if config.pluginserver_socket ~= "off" then
+    local conn, err = go.get_connection(config.pluginserver_socket)
+    if not conn then
+      kong.log.err("failure connecting to go plugin server socket: ", err)
+    else
+      conn:setkeepalive()
+    end
   end
 
   db:close()
