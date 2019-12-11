@@ -500,7 +500,7 @@ do
 
 
   get_updated_plugins_iterator = function()
-    if kong.configuration.router_consistency == "strict" then
+    if kong.configuration.proxy_state_consistency == "strict" then
       local ok, err = rebuild_plugins_iterator(PLUGINS_ITERATOR_SYNC_OPTS)
       if not ok then
         -- If an error happens while updating, log it and return non-updated
@@ -702,7 +702,7 @@ do
 
 
   get_updated_router = function()
-    if kong.configuration.router_consistency == "strict" then
+    if kong.configuration.proxy_state_consistency == "strict" then
       local ok, err = rebuild_router(ROUTER_SYNC_OPTS)
       if not ok then
         -- If an error happens while updating, log it and return non-updated
@@ -880,9 +880,9 @@ return {
         balancer.init()
       end)
 
-      local router_update_frequency = kong.configuration.router_update_frequency or 1
+      local proxy_state_update_frequency = kong.configuration.proxy_state_update_frequency or 1
 
-      timer_every(router_update_frequency, function(premature)
+      timer_every(proxy_state_update_frequency, function(premature)
         if premature then
           return
         end
@@ -897,7 +897,7 @@ return {
         end
       end)
 
-      timer_every(router_update_frequency, function(premature)
+      timer_every(proxy_state_update_frequency, function(premature)
         if premature then
           return
         end
