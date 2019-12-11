@@ -36,7 +36,7 @@ local function setup_it_block()
       },
       configuration = {
         database = "dummy",
-        router_consistency = "strict",
+        proxy_state_consistency = "strict",
       },
       db = {
         strategy = "dummy",
@@ -166,7 +166,7 @@ describe("runloop handler", function()
     it("does not call update_router if router_consistency is eventual", function()
       setup_it_block()
 
-      kong.configuration.router_consistency = "eventual"
+      kong.configuration.proxy_state_consistency = "eventual"
 
       local handler = require "kong.runloop.handler"
 
