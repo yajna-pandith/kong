@@ -140,10 +140,13 @@ go.get_connection = get_connection
 
 -- This is the MessagePack-RPC implementation
 local rpc_call
+local set_plugin_dir
 do
   local msg_id = 0
 
   local notifications = {}
+
+  local current_plugin_dir
 
   do
     local pluginserver_pid
@@ -151,6 +154,7 @@ do
       n = tonumber(n)
       if pluginserver_pid and n ~= pluginserver_pid then
         reset_instances()
+        current_plugin_dir = nil
       end
 
       pluginserver_pid = n
@@ -198,6 +202,20 @@ do
         return data[4]
       end
     end
+  end
+
+  function set_plugin_dir(dir)
+    if dir == current_plugin_dir then
+      return
+    end
+
+    local res, err = rpc_call("plugin.SetPluginDir", dir)
+    if not res then
+      kong.log.err("Setting Go plugin dir: ", err)
+      error(err)
+    end
+
+    current_plugin_dir = dir
   end
 end
 
@@ -373,7 +391,7 @@ do
       instance_info.id = nil
     end
 
-
+    set_plugin_dir(kong.configuration.go_plugins_dir)
     local status, err = rpc_call("plugin.StartInstance", {
       Name = plugin_name,
       Config = cjson_encode(conf)
@@ -409,7 +427,8 @@ local get_plugin do
       return plugin
     end
 
-    local plugin_info, err = rpc_call("plugin.GetPluginInfo", plugin_name)
+  set_plugin_dir(kong.configuration.go_plugins_dir)
+  local plugin_info, err = rpc_call("plugin.GetPluginInfo", plugin_name)
     if not plugin_info then
       kong.log.err("calling GetPluginInfo: ", err)
       return nil, err
