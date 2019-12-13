@@ -12,7 +12,27 @@ local fmt = string.format
 local proxy_client = helpers.proxy_client
 
 
+-- This performs the test up to two times (and no more than two).
+-- We are **not** retrying to "give it another shot" in case of a flaky test.
+-- The reason why we allow for a single retry in this test suite is because
+-- tests are dependent on the value of the current minute. If the minute
+-- flips during the test (i.e. going from 03:43:59 to 03:44:00), the result
+-- will fail. Since each test takes less than a minute to run, running it
+-- a second time right after that failure ensures that another flip will
+-- not occur. If the second execution failed as well, this means that there
+-- was an actual problem detected by the test.
+local function it_with_retry(desc, test)
+  return it(desc, function(...)
+    if not pcall(test, ...) then
+      test(...)
+    end
+  end)
+end
+
+
 local function GET(url, opts, res_status)
+  ngx.sleep(0.010)
+
   local client = proxy_client()
   local res, err  = client:get(url, opts)
   if not res then
@@ -26,8 +46,6 @@ local function GET(url, opts, res_status)
   end
 
   client:close()
-
-  ngx.sleep(0.010)
 
   return res, body
 end
@@ -242,7 +260,7 @@ for _, strategy in helpers.each_strategy() do
       end)
 
       describe("Without authentication (IP address)", function()
-        it("blocks if exceeding limit", function()
+        it_with_retry("blocks if exceeding limit", function()
           for i = 1, 6 do
             local res = GET("/status/200", {
               headers = { Host = "test1.com" },
@@ -274,7 +292,7 @@ for _, strategy in helpers.each_strategy() do
           assert.same({ message = "API rate limit exceeded" }, json)
         end)
 
-        it("counts against the same service register from different routes", function()
+        it_with_retry("counts against the same service register from different routes", function()
           for i = 1, 3 do
             local res = GET("/status/200", {
               headers = { Host = "test-service1.com" },
@@ -319,7 +337,7 @@ for _, strategy in helpers.each_strategy() do
           assert.same({ message = "API rate limit exceeded" }, json)
         end)
 
-        it("handles multiple limits", function()
+        it_with_retry("handles multiple limits", function()
           local limits = {
             minute = 3,
             hour   = 5
@@ -362,7 +380,7 @@ for _, strategy in helpers.each_strategy() do
       end)
       describe("With authentication", function()
         describe("API-specific plugin", function()
-          it("blocks if exceeding limit", function()
+          it_with_retry("blocks if exceeding limit", function()
             for i = 1, 6 do
               local res = GET("/status/200?apikey=apikey123", {
                 headers = { Host = "test3.com" },
@@ -399,8 +417,8 @@ for _, strategy in helpers.each_strategy() do
             }, 200)
           end)
         end)
-        describe("Plugin customized for specific consumer and route", function()
-          it("blocks if exceeding limit", function()
+        describe("#flaky Plugin customized for specific consumer and route", function()
+          it_with_retry("blocks if exceeding limit", function()
             for i = 1, 8 do
               local res = GET("/status/200?apikey=apikey122", {
                 headers = { Host = "test3.com" },
@@ -431,7 +449,7 @@ for _, strategy in helpers.each_strategy() do
             assert.same({ message = "API rate limit exceeded" }, json)
           end)
 
-          it("blocks if the only rate-limiting plugin existing is per consumer and not per API", function()
+          it_with_retry("blocks if the only rate-limiting plugin existing is per consumer and not per API", function()
             for i = 1, 6 do
               local res = GET("/status/200?apikey=apikey122", {
                 headers = { Host = "test4.com" },
@@ -465,7 +483,7 @@ for _, strategy in helpers.each_strategy() do
       end)
 
       describe("Config with hide_client_headers", function()
-        it("does not send rate-limit headers when hide_client_headers==true", function()
+        it_with_retry("does not send rate-limit headers when hide_client_headers==true", function()
           local res = GET("/status/200", {
             headers = { Host = "test5.com" },
           }, 200)
@@ -517,7 +535,7 @@ for _, strategy in helpers.each_strategy() do
             assert(db:truncate())
           end)
 
-          it("does not work if an error occurs", function()
+          it_with_retry("does not work if an error occurs", function()
             local res = GET("/status/200", {
               headers = { Host = "failtest1.com" },
             }, 200)
@@ -544,7 +562,7 @@ for _, strategy in helpers.each_strategy() do
             bp, db = helpers.get_db_utils(strategy)
           end)
 
-          it("keeps working if an error occurs", function()
+          it_with_retry("keeps working if an error occurs", function()
             local res = GET("/status/200", {
               headers = { Host = "failtest2.com" },
             }, 200)
@@ -621,7 +639,7 @@ for _, strategy in helpers.each_strategy() do
             assert(db:truncate())
           end)
 
-          it("does not work if an error occurs", function()
+          it_with_retry("does not work if an error occurs", function()
             -- Make another request
             local _, body = GET("/status/200", {
               headers = { Host = "failtest3.com" },
@@ -631,7 +649,7 @@ for _, strategy in helpers.each_strategy() do
             assert.same({ message = "An unexpected error occurred" }, json)
           end)
 
-          it("keeps working if an error occurs", function()
+          it_with_retry("keeps working if an error occurs", function()
             local res = GET("/status/200", {
               headers = { Host = "failtest4.com" },
             }, 200)
@@ -676,7 +694,7 @@ for _, strategy in helpers.each_strategy() do
           }))
         end)
 
-        it("#flaky expires a counter", function()
+        it_with_retry("#flaky expires a counter", function()
           local res = GET("/status/200", {
             headers = { Host = "expire1.com" },
           }, 200)
@@ -755,7 +773,7 @@ for _, strategy in helpers.each_strategy() do
         assert(db:truncate())
       end)
 
-      it("blocks when the consumer exceeds their quota, no matter what service/route used", function()
+      it_with_retry("blocks when the consumer exceeds their quota, no matter what service/route used", function()
         for i = 1, 6 do
           local res = GET("/status/200?apikey=apikey125", {
             headers = { Host = fmt("test%d.com", i) },
@@ -826,7 +844,7 @@ for _, strategy in helpers.each_strategy() do
         assert(db:truncate())
       end)
 
-      it("blocks if exceeding limit", function()
+      it_with_retry("blocks if exceeding limit", function()
         for i = 1, 6 do
           local res = GET("/status/200", {
             headers = { Host = fmt("test%d.com", i) },
@@ -896,7 +914,7 @@ for _, strategy in helpers.each_strategy() do
         assert(db:truncate())
       end)
 
-      it("blocks if exceeding limit", function()
+      it_with_retry("blocks if exceeding limit", function()
         for i = 1, 6 do
           local res = GET("/status/200", {
             headers = { Host = fmt("test%d.com", i) },
