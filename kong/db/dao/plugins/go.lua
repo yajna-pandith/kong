@@ -11,7 +11,7 @@ local go = {}
 local C = ffi.C
 local kong = kong
 local ngx = ngx
-local at = ngx.timer.at
+local ngx_timer_at = ngx.timer.at
 local cjson_encode = cjson.encode
 local mp_pack = msgpack.pack
 local mp_unpacker = msgpack.unpacker
@@ -441,7 +441,7 @@ local get_plugin do
       if phase == "log" then
         plugin[phase] = function (self, conf)
           preloaded_stuff.basic_serializer = basic_serializer.serialize(ngx)
-          at(0, function ()
+          ngx_timer_at(0, function ()
             local instance_id = get_instance(plugin_name, conf)
             bridge_loop(instance_id, phase)
             preloaded_stuff.basic_serializer = nil
