@@ -21,7 +21,6 @@ local preloaded_stuff = {}
 
 
 -- Workaround: if cosockets aren't available, use raw glibc calls
--- might be inconvenient for log phase...
 local get_connection
 do
   pcall(ffi.cdef, [[
@@ -324,7 +323,6 @@ local function bridge_loop(instance_id, phase)
   local event_id = step_in.EventId
 
   while true do
---     ngx.log(ngx.DEBUG, "step_in: ", cjson_encode(step_in))
     if step_in.Data == "ret" then
       break
     end
@@ -347,7 +345,6 @@ end
 
 -- find a plugin instance for this specific configuration
 -- if it's a new config, start a new instance
--- TODO: detect when it was a changed configuration and close the old instance
 -- returns: the instance ID
 local get_instance
 do
