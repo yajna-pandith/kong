@@ -234,6 +234,10 @@ end
 
 local get_field
 do
+  local exposed_api = {
+    kong = kong,
+  }
+
   local method_cache = {}
 
   function get_field(method)
@@ -241,7 +245,7 @@ do
       return method_cache[method]
 
     else
-      method_cache[method] = index_table(_G, method)
+      method_cache[method] = index_table(exposed_api, method)
       return method_cache[method]
     end
   end
