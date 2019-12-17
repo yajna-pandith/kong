@@ -205,6 +205,7 @@ end
 
 local function load_plugin_subschemas(fields, plugin_set, indent)
   indent = indent or 0
+  fields = fields or {}
   for _, f in ipairs(fields) do
     local fname, fdata = next(f)
 
